@@ -1,0 +1,33 @@
+def __getitem__(self, idx: int) -> dict:
+        # Step 1: Retrieve the raw sequence and label
+        raw_sequence = self.sequences[idx]
+        label = self.labels[idx]
+
+        augmented_sequence = self.augmentation_strategy.execute(list(raw_sequence))        
+        tokenized_sequence = self.encoder.tokenize(augmented_sequence)
+        token_ids = self.encoder.encode(tokenized_sequence)]
+        token_ids = self.padding_strategy.execute(token_ids)    # the strategy has the optimal_sequence length from setup
+        token_ids = self.truncation_strategy.execute(token_ids) # the strategy has the optimal_sequence length from setup
+
+        return {
+            "input_ids": token_ids,
+            "label": label
+        }
+
+or even 
+
+def __getitem__(self, idx: int) -> dict:
+        # Step 1: Retrieve the raw sequence and label
+        raw_sequence = self.sequences[idx]
+        label = self.labels[idx]
+
+        augmented_sequence = self.augmentation_strategy.execute(list(raw_sequence))        
+        tokenized_sequence = self.encoder.tokenize(augmented_sequence)
+        token_ids = self.encoder.encode(tokenized_sequence)
+        token_ids = self.padding_strategy.execute(token_ids)    # the strategy has the optimal_sequence length from setup
+        token_ids = self.truncation_strategy.execute(token_ids) # the strategy has the optimal_sequence length from setup
+        
+        return {
+            "input_ids": token_ids,
+            "label": label
+        }
