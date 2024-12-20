@@ -1,3 +1,4 @@
+import os
 import logging
 import inspect
 from typing import Any, Callable
@@ -54,21 +55,25 @@ def setup_logging(system_level, training_level):
     DEBUG_LOW = 8
     DEBUG_MEDIUM = 9
     DEBUG_HIGH = 10
-    logging.addLevelName(logging.CRITICAL,"CRITICAL !!!")
-    logging.addLevelName(logging.ERROR,   "ERROR    !!")
-    logging.addLevelName(logging.WARNING, "WARNING  !--")
-    logging.addLevelName(logging.INFO,    "INFO     ---")
-    logging.addLevelName(DEBUG_LOW,       "DEBUG    --*")
-    logging.addLevelName(DEBUG_MEDIUM,    "DEBUG    -*-")
-    logging.addLevelName(DEBUG_HIGH,      "DEBUG    *--")
-    
+    logging.addLevelName(logging.CRITICAL, "CRITICAL !!!")
+    logging.addLevelName(logging.ERROR,    "ERROR    !!")
+    logging.addLevelName(logging.WARNING,  "WARNING  !--")
+    logging.addLevelName(logging.INFO,     "INFO     ---")
+    logging.addLevelName(DEBUG_LOW,        "DEBUG    --*")
+    logging.addLevelName(DEBUG_MEDIUM,     "DEBUG    -*-")
+    logging.addLevelName(DEBUG_HIGH,       "DEBUG    *--")
+
+    # Create the logs directory if it doesn't exist
+    log_dir = "logs"
+    os.makedirs(log_dir, exist_ok=True)
+
     # Timestamp for file naming
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     
     # Set up the system logger
     system_logger = logging.getLogger("system_logger")
-    system_logger.setLevel(system_level)  # Or adjust as needed
-    system_log_filename = f"logs/{timestamp}_system.log"
+    system_logger.setLevel(system_level)
+    system_log_filename = os.path.join(log_dir, f"{timestamp}_system.log")
     system_handler = RotatingFileHandler(system_log_filename, maxBytes=5 * 1024 * 1024, backupCount=3)
     system_formatter = logging.Formatter("%(asctime)s - %(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
     system_handler.setFormatter(system_formatter)
@@ -76,8 +81,8 @@ def setup_logging(system_level, training_level):
     
     # Set up the training logger
     training_logger = logging.getLogger("training_logger")
-    training_logger.setLevel(training_level)  # Log warnings and above for training
-    training_log_filename = f"logs/{timestamp}_training.log"
+    training_logger.setLevel(training_level)
+    training_log_filename = os.path.join(log_dir, f"{timestamp}_training.log")
     training_handler = RotatingFileHandler(training_log_filename, maxBytes=5 * 1024 * 1024, backupCount=3)
     training_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
     training_handler.setFormatter(training_formatter)
