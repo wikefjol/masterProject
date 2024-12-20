@@ -36,12 +36,6 @@ Master thesis project aiming support the classification of fungal DNA sequences,
 ## Installation
 
 1. Clone the repository:
-
-   ```bash
-   git clone https://github.com/your-repo/dna-preprocessing-framework.git
-   cd dna-preprocessing-framework
-   ```
-
 2. Set up a virtual environment:
 
    ```bash
@@ -56,40 +50,14 @@ Master thesis project aiming support the classification of fungal DNA sequences,
    ```
 
 ## Usage
-
-1. Configure preprocessing settings: Modify the configuration dictionary in `main.py` to specify strategies for augmentation, tokenization, padding, and truncation.
-
-2. Run the application:
-
-   ```bash
-   python main.py
-   ```
-
-3. View logs: Logs are saved in the `logs/` directory, with separate files for system and training logs.
+TBC
 
 ## Configuration
-
-The framework is driven by a configuration dictionary, as shown below:
-
-```python
-config = {
-    "model": {"name": "example_model"},
-    "augmentation": {"strategy": "base", "alphabet": ["A", "C", "G", "T"], "modification_probability": 0.5},
-    "tokenization": {"strategy": "kmer", "k": 3},
-    "padding": {"strategy": "random", "optimal_length": 8},
-    "truncation": {"strategy": "slidingwindow", "optimal_length": 8}
-}
-```
-
-This configuration is passed to the factory methods for creating the vocabulary and preprocessing pipeline.
+TBC
 
 ## Extensibility
-    TBC
-- **Add New Strategies**:
-    TBC
+TBC
 
-- **Custom Logging Levels**: Add or modify logging levels in `logging_utils.py` as needed.
-    TBC
 ## Error Handling
 
 The project includes custom exceptions for error handling, such as:
