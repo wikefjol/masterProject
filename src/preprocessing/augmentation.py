@@ -1,6 +1,6 @@
 import random
 import logging
-from logging_utils import with_logging
+from utils.logging_utils import with_logging
 
 class SequenceModifier():
     ''' Modifies a sequence at a specific position'''

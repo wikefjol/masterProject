@@ -1,6 +1,6 @@
 import random
 import logging
-from logging_utils import with_logging
+from utils.logging_utils import with_logging
 
 system_logger = logging.getLogger("system_logger")
 class KmerStrategy:

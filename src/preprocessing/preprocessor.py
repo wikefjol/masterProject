@@ -1,5 +1,5 @@
-from typing import Protocol
-from logging_utils import with_logging
+from typing import Protocol, List, Any
+from utils.logging_utils import with_logging
 from vocab import Vocabulary
 class Strategy(Protocol):
     '''Augments sequence by imitating sequencing errors'''
@@ -15,10 +15,6 @@ class Strategy(Protocol):
         sequence : str
             Augmented DNA sequence
         """
-
-# preprocessor.py
-from typing import List, Any
-from logging_utils import with_logging
 
 class Preprocessor:
     def __init__(

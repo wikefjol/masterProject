@@ -50,43 +50,52 @@ def with_logging(level: int) -> Callable[..., Any]:
         return wrapper
     return decorator
 
-def setup_logging(system_level, training_level):
-
+def setup_logging(system_level, training_level, log_dir=None):
+    """
+    Set up system and training loggers with specified levels and directory.
+    """
     DEBUG_LOW = 8
     DEBUG_MEDIUM = 9
     DEBUG_HIGH = 10
-    logging.addLevelName(logging.CRITICAL, "CRITICAL !!!")
-    logging.addLevelName(logging.ERROR,    "ERROR    !!")
-    logging.addLevelName(logging.WARNING,  "WARNING  !--")
-    logging.addLevelName(logging.INFO,     "INFO     ---")
-    logging.addLevelName(DEBUG_LOW,        "DEBUG    --*")
-    logging.addLevelName(DEBUG_MEDIUM,     "DEBUG    -*-")
-    logging.addLevelName(DEBUG_HIGH,       "DEBUG    *--")
+    logging.addLevelName(DEBUG_LOW, "DEBUG --*")
+    logging.addLevelName(DEBUG_MEDIUM, "DEBUG -*-")
+    logging.addLevelName(DEBUG_HIGH, "DEBUG *--")
 
-    # Create the logs directory if it doesn't exist
-    log_dir = "logs"
-    os.makedirs(log_dir, exist_ok=True)
+    if log_dir:
+        os.makedirs(log_dir, exist_ok=True)
 
-    # Timestamp for file naming
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    
-    # Set up the system logger
+    # Clear existing handlers for system_logger
     system_logger = logging.getLogger("system_logger")
+    while system_logger.handlers:
+        system_logger.handlers.pop()
+
+    # Clear existing handlers for training_logger
+    training_logger = logging.getLogger("training_logger")
+    while training_logger.handlers:
+        training_logger.handlers.pop()
+
+    # Timestamp for log files and content
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_file_timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+
+    # Set up system logger
     system_logger.setLevel(system_level)
-    system_log_filename = os.path.join(log_dir, f"{timestamp}_system.log")
-    system_handler = RotatingFileHandler(system_log_filename, maxBytes=5 * 1024 * 1024, backupCount=3)
-    system_formatter = logging.Formatter("%(asctime)s - %(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+    system_log_file = os.path.join(log_dir, f"system_{log_file_timestamp}.log") if log_dir else "system.log"
+    system_handler = RotatingFileHandler(system_log_file, maxBytes=5 * 1024 * 1024, backupCount=3)
+    system_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
     system_handler.setFormatter(system_formatter)
     system_logger.addHandler(system_handler)
-    
-    # Set up the training logger
-    training_logger = logging.getLogger("training_logger")
+
+    # Set up training logger
     training_logger.setLevel(training_level)
-    training_log_filename = os.path.join(log_dir, f"{timestamp}_training.log")
-    training_handler = RotatingFileHandler(training_log_filename, maxBytes=5 * 1024 * 1024, backupCount=3)
+    training_log_file = os.path.join(log_dir, f"training_{log_file_timestamp}.log") if log_dir else "training.log"
+    training_handler = RotatingFileHandler(training_log_file, maxBytes=5 * 1024 * 1024, backupCount=3)
     training_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
     training_handler.setFormatter(training_formatter)
     training_logger.addHandler(training_handler)
 
-    # Returning both loggers for usage in main
+    # Log the "Run started" message once
+    system_logger.info(f"Run started: {timestamp}")
+    training_logger.info(f"Run started: {timestamp}")
+
     return system_logger, training_logger

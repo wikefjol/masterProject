@@ -1,0 +1,27 @@
+{
+    "model": {
+        "name": "test_model"
+    },
+    "augmentation": {
+        "strategy": "random",
+        "alphabet": [
+            "A",
+            "C",
+            "G",
+            "T"
+        ],
+        "modification_probability": 0.5
+    },
+    "tokenization": {
+        "strategy": "kmer",
+        "k": 5
+    },
+    "padding": {
+        "strategy": "front",
+        "optimal_length": 8
+    },
+    "truncation": {
+        "strategy": "slidingwindow",
+        "optimal_length": 8
+    }
+}

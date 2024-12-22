@@ -3,7 +3,7 @@ import json
 from typing import Dict, List
 from abc import ABC, abstractmethod
 from itertools import product
-from logging_utils import with_logging
+from utils.logging_utils import with_logging
 
 class VocabConstructor(ABC):
     """

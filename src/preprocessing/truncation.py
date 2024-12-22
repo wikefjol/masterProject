@@ -1,6 +1,6 @@
 
 import random
-from logging_utils import with_logging
+from utils.logging_utils import with_logging
 
 class FrontStrategy:
    
