@@ -1,0 +1,35 @@
+{
+    "fasta_file": "data/raw/raw.fasta",
+    "prepared_data_dir": "data/prepared",
+    "force_reprocess": false,
+    "test_size": 0.2,
+    "random_seed": 42,
+    "vocab_options": {
+        "min_frequency": 2,
+        "max_tokens": 5000
+    },
+    "preprocessor_options": {
+        "augmentation_strategy": {
+            "strategy": "base",
+            "alphabet": [
+                "A",
+                "C",
+                "G",
+                "T"
+            ],
+            "modification_probability": 0.5
+        },
+        "tokenization_strategy": {
+            "strategy": "kmer",
+            "k": 5
+        },
+        "padding_strategy": {
+            "strategy": "front",
+            "optimal_length": 8
+        },
+        "truncation_strategy": {
+            "strategy": "front",
+            "optimal_length": 8
+        }
+    }
+}

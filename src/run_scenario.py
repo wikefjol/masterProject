@@ -104,10 +104,10 @@ def load_config(config_path):
         return json.load(config_file)
 
 
-def run_scenario(config_path):
+def run_scenario(config_path, system_log_level=11, training_log_level=10):
     """Run the scenario using the provided configuration."""
     scenario_dir = setup_environment(config_path)
-    system_logger, _ = setup_logging(11, 10, scenario_dir)
+    system_logger, _ = setup_logging(system_log_level, training_log_level, scenario_dir)
 
     try:
         config = load_config(config_path)
@@ -136,5 +136,9 @@ def run_scenario(config_path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run a scenario.")
     parser.add_argument("config_path", help="Path to the configuration file.")
+    parser.add_argument("--system_log_level", type=int, default=11, help="System logging level (default: 11).")
+    parser.add_argument("--training_log_level", type=int, default=10, help="Training logging level (default: 10).")
     args = parser.parse_args()
-    run_scenario(args.config_path)
+
+    # Run scenario with specified logging levels
+    run_scenario(args.config_path, args.system_log_level, args.training_log_level)
