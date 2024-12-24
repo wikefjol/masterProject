@@ -118,32 +118,41 @@ class SequenceDataPreparer:
         train_df, test_df = train_test_split(df, test_size=test_size, random_state=random_state)
         return train_df, test_df
 
-    def prepare(self) -> None:
+    def prepare(self, test_size, random_seed):
         """
-        Execute the full sequence data preparation pipeline:
-        1. Parse FASTA file into a DataFrame.
-        2. Save the full DataFrame to a CSV file.
-        3. Split the data into training and testing sets.
-        4. Save the training and testing sets to separate CSV files.
+        Execute the full sequence data preparation pipeline.
+
+        Returns:
+            tuple: Paths to training and testing CSV files.
         """
-        # Step 1: Parse FASTA file
         sequences_df = self.parse_fasta_to_dataframe()
+        train_df, test_df = self.split_data(sequences_df, test_size, random_seed)
 
-        # Step 2: Save full dataset
-        self.save_dataframe_to_csv(sequences_df, "prepared_sequences.csv")
+        train_file = os.path.join(self.output_dir, "train_sequences.csv")
+        test_file = os.path.join(self.output_dir, "test_sequences.csv")
+        self.save_dataframe_to_csv(train_df, train_file)
+        self.save_dataframe_to_csv(test_df, test_file)
 
-        # Step 3: Split the data
-        train_df, test_df = self.split_data(sequences_df)
+        return train_file, test_file
 
-        # Step 4: Save training and testing sets
-        self.save_dataframe_to_csv(train_df, "train_prepared_sequences.csv")
-        self.save_dataframe_to_csv(test_df, "test_prepared_sequences.csv")
 
-        print(
-            f"Prepared {len(sequences_df)} sequences. "
-            f"Training set: {len(train_df)}, Test set: {len(test_df)}"
-        )
+def prepare_data(config, logger):
+    """
+    Prepare data for a specific phase (pretraining/finetuning).
 
+    Args:
+        config (dict): Configuration for the phase.
+        logger (Logger): Logger instance.
+
+    Returns:
+        str: Path to the prepared dataset.
+    """
+    fasta_file = config["fasta_file"]
+    output_dir = config["output_dir"]
+    preparer = SequenceDataPreparer(fasta_file, output_dir)
+    prepared_data = preparer.prepare()
+    logger.info(f"Data prepared: {prepared_data}")
+    return prepared_data
 
 # Example usage:
 if __name__ == "__main__":

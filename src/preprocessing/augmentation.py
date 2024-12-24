@@ -7,22 +7,22 @@ class SequenceModifier():
     def __init__(self, alphabet: list[str]):
         self.alphabet = alphabet
     
-    @with_logging(level=8)
+    #@with_logging(level=8)
     def _insert(self, seq: list[str], idx: int) -> None:
         insert_idx = random.choice([idx, idx + 1])
         if insert_idx <= len(seq):
             seq.insert(insert_idx, random.choice(self.alphabet))
     
-    @with_logging(level=8)
+    #@with_logging(level=8)
     def _replace(self, seq: list[str], idx: int) -> None:
         seq[idx] = random.choice(self.alphabet)
     
-    @with_logging(level=8)
+    #@with_logging(level=8)
     def _delete(self, seq: list[str], idx: int) -> None:
         if len(seq) > 1:
             seq.pop(idx)
     
-    @with_logging(level=8)
+    #@with_logging(level=8)
     def _swap(self, seq: list[str], idx: int) -> None:
         swap_pos = idx + random.choice([-1, 1])
         if 0 <= swap_pos < len(seq):

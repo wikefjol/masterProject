@@ -1,53 +1,37 @@
 from run_scenario import run_scenario
+import os
+import json
 
 def main():
     """
-    Entry point for running a specific scenario using a configuration file.
+    Entry point for running a specific scenario with hierarchical configuration.
 
     Workflow:
-    1. If no configuration files exist in the `scenarios` directory:
-       - Locate the `generate_configs.py` script in the `utils` directory.
-       - Run it to generate a set of configuration files. These will be saved under the `/scenarios` directory.
-    
-    2. Once configuration files are generated:
-       - Choose one of the generated config files as your scenario.
-       - Update the `CONFIG_PATH` variable below with the absolute path to the chosen config file.
+    - This script expects the path to a scenario folder containing:
+        - `general_config.json`: Defines shared settings across scenarios.
+        - `pretraining_config.json`: Defines settings specific to the pretraining phase.
+        - `finetuning_config.json`: Defines settings specific to the finetuning phase.
 
-    3. Run the script:
-       - Execute this script directly using `python3 main.py`.
-       - Alternatively, you can directly invoke the `run_scenario.py` script with the config path:
-         `python3 run_scenario.py "path_to_config"`.
-
-    Example:
-        CONFIG_PATH = "/path/to/your/scenario/config.json"
-    
-    What happens:
-    - The script processes the configuration to prepare data, preprocess sequences, 
-      and save all outputs (logs, vocab files, preprocessed data, etc.) in a unique directory under the `/runs` folder.
-    - Logs and preprocessed data are grouped by scenario for easier tracking of runs.
-    - Look in the system_***.log to see what happened
-    - If the runs folder gets bloated, feel free to delete it (given this is not vital information) the folder will be recreated when running new scenarios.
+    Steps:
+    1. Generate scenario folders and configurations using `generate_configs.py` if none exist.
+    2. Choose a specific scenario folder to run.
+    3. Pass the folder path to `run_scenario()`.
 
     Notes:
-    - Ensure that the raw data is located in the `data/raw/` directory and matches the `fasta_file` path defined in the config.
-    - To force a reprocessing of prepared data for a run, update the `force_reprocess` flag in the configuration file to `true`.
-
+    - The script processes the configuration files in the scenario folder.
+    - Outputs (logs, vocab, preprocessed data, etc.) are saved under `/runs/<scenario_folder_name>`.
     """
 
-    CONFIG_PATH = "/Users/filipberntsson/Documents/Studies/Thesis/Programming/BarcodeClassifier/scenarios/config_k3_base_end_end.json"  # Update with the actual path to your config file
+    # Specify the path to the scenario folder
+    SCENARIO_FOLDER = "scenarios/scenario_1"  # Update with your desired scenario folder path
 
-    # Optional argumetns, for logging precision.
-    system_log_level=10 #20 for info level, 10 for coarse debug, 9 for finer, 8 for superfine (warning, likely too fine)
-    training_log_level=10 #no logging impleneted here as of yet
+    # Validate scenario folder existence
+    if not os.path.exists(SCENARIO_FOLDER):
+        raise FileNotFoundError(f"Scenario folder not found: {SCENARIO_FOLDER}")
 
-    # Run the scenario using the specified configuration
-    
-    
-    
-
-    run_scenario(CONFIG_PATH, system_log_level, training_log_level)
+    # Run the scenario
+    run_scenario(SCENARIO_FOLDER)
 
 
 if __name__ == "__main__":
     main()
-

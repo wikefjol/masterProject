@@ -1,16 +1,19 @@
 import os
 import json
+import itertools
 
-# Define parameters
-augmentation_strategies = ["base", "random", "identity"]  # Add your strategies here
-truncation_strategies = ["front", "end", "slidingwindow"]
-padding_strategies = ["front", "end", "random"]
+# Define reduced parameters for testing
+augmentation_strategies = ["base", "random"]
+truncation_strategies = ["front", "end"]
+padding_strategies = ["front", "end"]
 k_values = [3, 5]
 optimal_length = 8
 
-# Default values for additional fields
+# Default values for general, pretraining, and finetuning configs
 fasta_file_path = "data/raw/raw.fasta"
 prepared_data_dir = "data/prepared"
+pretraining_dataset = "data/pretraining_data.csv"
+finetuning_dataset = "data/finetuning_data.csv"
 test_size = 0.2
 random_seed = 42
 
@@ -18,10 +21,20 @@ random_seed = 42
 output_dir = "scenarios"
 os.makedirs(output_dir, exist_ok=True)
 
-# Template for configuration
-base_config = {
+# General configuration template
+general_config = {
+    "tokenization_strategy": "kmer",
+    "log_dir": "runs/logs",
+    "system_log_level": 20,
+    "training_log_level": 20
+}
+
+# Pretraining configuration template
+base_pretraining_config = {
+    "enabled": True,
     "fasta_file": fasta_file_path,
     "prepared_data_dir": prepared_data_dir,
+    "dataset": pretraining_dataset,
     "force_reprocess": False,
     "test_size": test_size,
     "random_seed": random_seed,
@@ -40,41 +53,91 @@ base_config = {
     }
 }
 
-# Generate all combinations
-for k in k_values:
-    for truncation in truncation_strategies:
-        for padding in padding_strategies:
-            for augmentation in augmentation_strategies:
-                # Create a copy of the base configuration
-                config = base_config.copy()
+# Finetuning configuration template
+base_finetuning_config = {
+    "enabled": True,
+    "fasta_file": fasta_file_path,
+    "prepared_data_dir": prepared_data_dir,
+    "dataset": finetuning_dataset,
+    "force_reprocess": False,
+    "test_size": test_size,
+    "random_seed": random_seed,
+    "preprocessor_options": {
+        "augmentation_strategy": {},
+        "tokenization_strategy": {
+            "strategy": "kmer",
+            "k": None
+        },
+        "padding_strategy": {},
+        "truncation_strategy": {}
+    }
+}
 
-                # Set k-mer size
-                config["preprocessor_options"]["tokenization_strategy"]["k"] = k
+# Generate 5 combinations of pretraining and finetuning configurations
+combinations = list(itertools.product(
+    k_values,
+    augmentation_strategies,
+    truncation_strategies,
+    padding_strategies
+))[:5]  # Limit to 5 combinations
 
-                # Set truncation strategy
-                config["preprocessor_options"]["truncation_strategy"] = {
-                    "strategy": truncation,
-                    "optimal_length": optimal_length
-                }
+for i, (k, augmentation, truncation, padding) in enumerate(combinations):
+    # Create a folder for each full scenario
+    scenario_dir = os.path.join(output_dir, f"scenario_{i+1}")
+    os.makedirs(scenario_dir, exist_ok=True)
 
-                # Set padding strategy
-                config["preprocessor_options"]["padding_strategy"] = {
-                    "strategy": padding,
-                    "optimal_length": optimal_length
-                }
+    # Create copies of the base configurations
+    pretraining_config = base_pretraining_config.copy()
+    finetuning_config = base_finetuning_config.copy()
 
-                # Set augmentation strategy
-                config["preprocessor_options"]["augmentation_strategy"] = {
-                    "strategy": augmentation,
-                    "alphabet": ["A", "C", "G", "T"],
-                    "modification_probability": 0.5
-                }
+    # Update tokenization strategy for both pretraining and finetuning
+    pretraining_config["preprocessor_options"]["tokenization_strategy"]["k"] = k
+    finetuning_config["preprocessor_options"]["tokenization_strategy"]["k"] = k
 
-                # Generate filename
-                filename = f"config_k{k}_{augmentation}_{truncation}_{padding}.json"
+    # Update truncation strategy
+    pretraining_config["preprocessor_options"]["truncation_strategy"] = {
+        "strategy": truncation,
+        "optimal_length": optimal_length
+    }
+    finetuning_config["preprocessor_options"]["truncation_strategy"] = {
+        "strategy": truncation,
+        "optimal_length": optimal_length
+    }
 
-                # Save configuration to file
-                with open(os.path.join(output_dir, filename), "w") as f:
-                    json.dump(config, f, indent=4)
+    # Update padding strategy
+    pretraining_config["preprocessor_options"]["padding_strategy"] = {
+        "strategy": padding,
+        "optimal_length": optimal_length
+    }
+    finetuning_config["preprocessor_options"]["padding_strategy"] = {
+        "strategy": padding,
+        "optimal_length": optimal_length
+    }
 
-print(f"Generated {len(augmentation_strategies) * len(truncation_strategies) * len(padding_strategies) * len(k_values)} configuration files in '{output_dir}'")
+    # Update augmentation strategy
+    pretraining_config["preprocessor_options"]["augmentation_strategy"] = {
+        "strategy": augmentation,
+        "alphabet": ["A", "C", "G", "T"],
+        "modification_probability": 0.5
+    }
+    finetuning_config["preprocessor_options"]["augmentation_strategy"] = {
+        "strategy": augmentation,
+        "alphabet": ["A", "C", "G", "T"],
+        "modification_probability": 0.5
+    }
+
+    # Save the configurations in the scenario folder
+    general_config_path = os.path.join(scenario_dir, "general_config.json")
+    pretraining_config_path = os.path.join(scenario_dir, "pretraining_config.json")
+    finetuning_config_path = os.path.join(scenario_dir, "finetuning_config.json")
+
+    with open(general_config_path, "w") as f:
+        json.dump(general_config, f, indent=4)
+
+    with open(pretraining_config_path, "w") as f:
+        json.dump(pretraining_config, f, indent=4)
+
+    with open(finetuning_config_path, "w") as f:
+        json.dump(finetuning_config, f, indent=4)
+
+print(f"Generated {len(combinations)} full scenarios in '{output_dir}'")

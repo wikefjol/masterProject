@@ -77,11 +77,18 @@ def create_preprocessor(config: dict[str, Any], vocab: Vocabulary) -> Preprocess
         pad_config = preprocessor_options["padding_strategy"]
         trun_config = preprocessor_options["truncation_strategy"]
 
-        modifier: Modifier = SequenceModifier(aug_config["alphabet"])
-        augmentation_strategy = get_strategy("augmentation", modifier=modifier, **aug_config)
+        # Create the modifier instance
+        alphabet = aug_config.get("alphabet", ["A", "C", "G", "T"])
+        modifier = SequenceModifier(alphabet)  # Pass this modifier to the strategy
+
+        # Create strategies
+        augmentation_strategy = get_strategy(
+            "augmentation", modifier=modifier, **aug_config
+        )
         tokenization_strategy = get_strategy("tokenization", **tok_config)
         padding_strategy = get_strategy("padding", **pad_config)
         truncation_strategy = get_strategy("truncation", **trun_config)
+
     except KeyError as e:
         raise ConstructionError(f"Strategy configuration error: {e}")
     except StrategyError as e:

@@ -1,133 +1,134 @@
 import argparse
 import json
 import os
-import shutil
-import hashlib
 import pandas as pd
 from factory import create_preprocessor, create_vocabulary
 from errors import ConstructionError, PreprocessingError
 from utils.logging_utils import setup_logging
 from preparer import SequenceDataPreparer
+from tqdm import tqdm  # Ensure tqdm is imported
 
 
-def hash_file(file_path):
-    """Compute a hash of the file to ensure raw data integrity."""
-    hasher = hashlib.md5()
-    with open(file_path, 'rb') as f:
-        while chunk := f.read(8192):
-            hasher.update(chunk)
-    return hasher.hexdigest()
+def load_configs(scenario_folder):
+    """Load all configuration files from the scenario folder."""
+    general_config_path = os.path.join(scenario_folder, "general_config.json")
+    pretraining_config_path = os.path.join(scenario_folder, "pretraining_config.json")
+    finetuning_config_path = os.path.join(scenario_folder, "finetuning_config.json")
 
+    if not all(os.path.exists(path) for path in [general_config_path, pretraining_config_path, finetuning_config_path]):
+        raise FileNotFoundError(f"One or more config files are missing in the scenario folder: {scenario_folder}")
 
-def create_unique_scenario_dir(base_dir, config_name):
-    """Create a unique directory by appending a number if the directory already exists."""
-    scenario_dir = os.path.join(base_dir, config_name)
-    counter = 0
-    while os.path.exists(scenario_dir):
-        counter += 1
-        scenario_dir = f"{os.path.join(base_dir, config_name)}_{counter}"
-    os.makedirs(scenario_dir)
-    return scenario_dir
+    with open(general_config_path, 'r') as f:
+        general_config = json.load(f)
+    with open(pretraining_config_path, 'r') as f:
+        pretraining_config = json.load(f)
+    with open(finetuning_config_path, 'r') as f:
+        finetuning_config = json.load(f)
+
+    return general_config, pretraining_config, finetuning_config
 
 
 def prepare_data(fasta_file, output_dir, test_size, random_seed, logger, scenario_dir=None, force_reprocess=False):
-    """Prepare training and testing data with options for reuse or run-specific preparation."""
-    fasta_hash = hash_file(fasta_file)
-    metadata = {
-        "test_size": test_size,
-        "random_seed": random_seed,
-        "fasta_hash": fasta_hash,
-    }
-
-    # Decide where to store data
-    if force_reprocess and scenario_dir:
-        data_dir = scenario_dir  # Save to run-specific directory
-    else:
-        data_dir = os.path.join(output_dir, f"scenario_testsize_{test_size}_seed_{random_seed}")
-        os.makedirs(data_dir, exist_ok=True)
-
-    train_file = os.path.join(data_dir, "train_sequences.csv")
-    test_file = os.path.join(data_dir, "test_sequences.csv")
-    metadata_file = os.path.join(data_dir, "prepared_metadata.json")
-
-    if not force_reprocess and os.path.exists(metadata_file):
-        with open(metadata_file, 'r') as f:
-            if json.load(f) == metadata:
-                logger.info(f"Prepared data already exists in {data_dir}. Skipping preparation.")
-                return train_file, test_file
-
-    # Prepare data
-    logger.info(f"Preparing data in {data_dir}...")
-    preparer = SequenceDataPreparer(fasta_file, data_dir)
-    sequences_df = preparer.parse_fasta_to_dataframe()
-    train_df, test_df = preparer.split_data(sequences_df, test_size, random_seed)
-    preparer.save_dataframe_to_csv(train_df, "train_sequences.csv")
-    preparer.save_dataframe_to_csv(test_df, "test_sequences.csv")
-
-    with open(metadata_file, 'w') as f:
-        json.dump(metadata, f)
-
-    logger.info(f"Data preparation complete: Train: {train_file}, Test: {test_file}")
+    """Prepare training and testing data."""
+    preparer = SequenceDataPreparer(fasta_file, output_dir)
+    train_file, test_file = preparer.prepare(test_size, random_seed)
+    logger.info(f"Data prepared: Train file: {train_file}, Test file: {test_file}")
     return train_file, test_file
 
 
-def process_sequences(train_file, preprocessor, logger, limit=None):
-    """Preprocess sequences from the training data."""
+def run_pretraining(pretraining_config, scenario_dir, logger):
+    """Run the pretraining process."""
+    logger.info("Running pretraining...")
+    fasta_file = pretraining_config["fasta_file"]
+    output_dir = os.path.abspath(pretraining_config["prepared_data_dir"])
+    test_size = pretraining_config["test_size"]
+    random_seed = pretraining_config["random_seed"]
+    force_reprocess = pretraining_config.get("force_reprocess", False)
+
+    # Step 1: Data Preparation
+    os.makedirs(output_dir, exist_ok=True)
+    train_file, _ = prepare_data(
+        fasta_file, output_dir, test_size, random_seed, logger, scenario_dir, force_reprocess
+    )
+
+    # Step 2: Create Vocabulary and Preprocessor
+    vocab = create_vocabulary(pretraining_config)
+    vocab.save(os.path.join(scenario_dir, "pretraining_vocab.json"))
+    preprocessor = create_preprocessor(pretraining_config, vocab)
+
+    # Step 3: Load Dataset and Initialize DataLoader (Placeholder)
+    logger.info("Initializing Dataset and DataLoader (Placeholder)")
     train_df = pd.read_csv(train_file)
-    preprocessed_data = []
+    preprocessed_data = [
+        preprocessor.process(sequence) for sequence in tqdm(train_df["Sequence"].tolist(), desc="Processing sequences")
+    ]
 
-    for idx, row in train_df.iterrows():
-        if limit and idx >= limit:
-            break
-        sequence = row["Sequence"]
-        preprocessed_sequence = preprocessor.process(sequence)
-        row_data = row.to_dict()
-        row_data["Preprocessed_Sequence"] = preprocessed_sequence
-        preprocessed_data.append(row_data)
-        logger.info(f"Preprocessed sequence {idx + 1}: {preprocessed_sequence}")
+    # Save preprocessed data for use in training
+    preprocessed_file = os.path.join(scenario_dir, "pretraining_data.csv")
+    pd.DataFrame({"Sequence": preprocessed_data}).to_csv(preprocessed_file, index=False)
+    logger.info(f"Pretraining data saved to {preprocessed_file}")
 
-    return pd.DataFrame(preprocessed_data)
+    # Step 4: Call Trainer (Placeholder)
+    logger.info("Training logic to be implemented with Trainer class (Placeholder).")
+
+def run_finetuning(finetuning_config, scenario_dir, logger):
+    """Run the finetuning process."""
+    logger.info("Running finetuning...")
+    fasta_file = finetuning_config["fasta_file"]
+    output_dir = os.path.abspath(finetuning_config["prepared_data_dir"])
+    test_size = finetuning_config["test_size"]
+    random_seed = finetuning_config["random_seed"]
+    force_reprocess = finetuning_config.get("force_reprocess", False)
+
+    # Prepare data
+    os.makedirs(output_dir, exist_ok=True)  # Ensure directory exists
+    train_file, test_file = prepare_data(
+        fasta_file, output_dir, test_size, random_seed, logger, scenario_dir, force_reprocess
+    )
+
+    # Load pretraining vocabulary
+    vocab_path = os.path.join(scenario_dir, "pretraining_vocab.json")
+    vocab = create_vocabulary(finetuning_config)
+    vocab.load(vocab_path)
+
+    preprocessor = create_preprocessor(finetuning_config, vocab)
+
+    # Process sequences
+    train_df = pd.read_csv(train_file)
+    preprocessed_data = [
+        preprocessor.process(sequence) for sequence in train_df["Sequence"].tolist()
+    ]
+
+    # Save preprocessed data
+    preprocessed_file = os.path.join(scenario_dir, "finetuning_data.csv")
+    pd.DataFrame({"Sequence": preprocessed_data}).to_csv(preprocessed_file, index=False)
+    logger.info(f"Finetuning data saved to {preprocessed_file}")
 
 
-def setup_environment(config_path):
-    """Set up the scenario directory and copy configuration."""
-    config_name = os.path.splitext(os.path.basename(config_path))[0]
-    scenario_dir = create_unique_scenario_dir("runs", config_name)
-    shutil.copy(config_path, os.path.join(scenario_dir, "config.json"))
-    return scenario_dir
+def run_scenario(scenario_folder):
+    """Run the scenario using the provided scenario folder."""
+    general_config, pretraining_config, finetuning_config = load_configs(scenario_folder)
 
-def load_config(config_path):
-    """Load the configuration from the specified file path."""
-    if not os.path.exists(config_path):
-        raise FileNotFoundError(f"Configuration file not found: {config_path}")
-    with open(config_path, 'r') as config_file:
-        return json.load(config_file)
+    # Setup logging
+    log_dir = general_config.get("log_dir", "runs/logs")
+    system_log_level = general_config.get("system_log_level", 20)
+    training_log_level = general_config.get("training_log_level", 20)
+    scenario_dir = os.path.join("runs", os.path.basename(scenario_folder))
 
-
-def run_scenario(config_path, system_log_level=11, training_log_level=10):
-    """Run the scenario using the provided configuration."""
-    scenario_dir = setup_environment(config_path)
+    os.makedirs(scenario_dir, exist_ok=True)
     system_logger, _ = setup_logging(system_log_level, training_log_level, scenario_dir)
 
     try:
-        config = load_config(config_path)
-        fasta_file = config["fasta_file"]
-        output_dir = config["prepared_data_dir"]
-        test_size = config["test_size"]
-        random_seed = config["random_seed"]
+        # Handle pretraining
+        if pretraining_config.get("enabled", False):
+            #TODO: Change the structure here, so that we have one call that prepares the trainingdata, then one call that later will perform the actual training, with a trainier object. 
+            # #here we will likely need both a dataset class, and a dataloader the "run_pretraining" method will eventually have to be entirely rewritten. Mirroring this will have to happen for the finetuning case later. 
+            print("Preparing pretraining data")
+            run_pretraining(pretraining_config, scenario_dir, system_logger)
 
-        force_reprocess = config.get("force_reprocess", False)  # New option in config
-        train_file, _ = prepare_data(fasta_file, output_dir, test_size, random_seed, system_logger, scenario_dir, force_reprocess)
-
-        vocab = create_vocabulary(config)
-        vocab.save(os.path.join(scenario_dir, "vocab.json"))
-
-        preprocessor = create_preprocessor(config, vocab)
-        preprocessed_df = process_sequences(train_file, preprocessor, system_logger, limit=10)
-
-        preprocessed_df_path = os.path.join(scenario_dir, "preprocessed_data.csv")
-        preprocessed_df.to_csv(preprocessed_df_path, index=False)
-        system_logger.info(f"Saved preprocessed data to {preprocessed_df_path}")
+        # Handle finetuning
+        #if finetuning_config.get("enabled", False):
+            #run_finetuning(finetuning_config, scenario_dir, system_logger)
 
     except Exception as e:
         system_logger.error(f"An error occurred: {e}")
@@ -135,10 +136,6 @@ def run_scenario(config_path, system_log_level=11, training_log_level=10):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run a scenario.")
-    parser.add_argument("config_path", help="Path to the configuration file.")
-    parser.add_argument("--system_log_level", type=int, default=11, help="System logging level (default: 11).")
-    parser.add_argument("--training_log_level", type=int, default=10, help="Training logging level (default: 10).")
+    parser.add_argument("scenario_folder", help="Path to the scenario folder.")
     args = parser.parse_args()
-
-    # Run scenario with specified logging levels
-    run_scenario(args.config_path, args.system_log_level, args.training_log_level)
+    run_scenario(args.scenario_folder)
