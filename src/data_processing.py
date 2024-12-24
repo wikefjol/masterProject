@@ -1,64 +1,92 @@
+import os
 import pandas as pd
 from Bio import SeqIO
+from typing import Tuple
 from sklearn.model_selection import train_test_split
 
-def parse_fasta_to_dataframe(fasta_path):
+
+class DataProcessor:
     """
-    Parse a FASTA file into a Pandas DataFrame with 'ID' and 'Sequence' columns.
-
-    Args:
-        fasta_path (str): Path to the FASTA file.
-
-    Returns:
-        pd.DataFrame: DataFrame containing IDs and sequences.
+    Handles the entire data processing pipeline, from reading raw data to preparing it
+    for further stages such as preprocessing.
     """
-    records = []
-    for record in SeqIO.parse(fasta_path, "fasta"):
-        records.append({"ID": record.id, "Sequence": str(record.seq)})
-    return pd.DataFrame(records)
+    def __init__(self, fasta_path: str, output_dir: str):
+        """
+        Initialize the DataProcessor.
 
-def save_dataframe_to_csv(df, output_path):
-    """
-    Save a DataFrame to a CSV file.
+        Args:
+            fasta_path (str): Path to the raw FASTA file.
+            output_dir (str): Directory to save processed datasets.
+        """
+        self.fasta_path = fasta_path
+        self.output_dir = output_dir
+        os.makedirs(output_dir, exist_ok=True)
 
-    Args:
-        df (pd.DataFrame): DataFrame to save.
-        output_path (str): Path to save the CSV file.
-    """
-    df.to_csv(output_path, index=False)
+    def parse_fasta(self) -> pd.DataFrame:
+        """
+        Parse the FASTA file into a Pandas DataFrame.
 
-def split_data(df, test_size=0.2, random_state=42):
-    """
-    Split the DataFrame into training and testing sets.
+        Returns:
+            pd.DataFrame: DataFrame with 'ID' and 'Sequence' columns.
+        """
+        records = [
+            {"ID": record.id, "Sequence": str(record.seq)}
+            for record in SeqIO.parse(self.fasta_path, "fasta")
+        ]
+        return pd.DataFrame(records)
 
-    Args:
-        df (pd.DataFrame): DataFrame to split.
-        test_size (float): Proportion of the dataset to include in the test split.
-        random_state (int): Random seed.
+    def save_dataframe(self, df: pd.DataFrame, filename: str):
+        """
+        Save a DataFrame as a CSV file.
 
-    Returns:
-        tuple: Training and testing DataFrames.
-    """
-    train_df, test_df = train_test_split(df, test_size=test_size, random_state=random_state)
-    return train_df, test_df
+        Args:
+            df (pd.DataFrame): DataFrame to save.
+            filename (str): Name of the output file.
+        """
+        output_path = os.path.join(self.output_dir, filename)
+        df.to_csv(output_path, index=False)
+        print(f"Saved: {output_path}")
 
-# Example usage:
-fasta_file = "data/raw/raw.fasta"
-output_csv = "output/sequences.csv"
-train_csv = "output/train_sequences.csv"
-test_csv = "output/test_sequences.csv"
+    def split_data(self, df: pd.DataFrame, test_size: float = 0.2, random_state: int = 42) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Split the DataFrame into training and testing sets.
 
-# Parse the FASTA file to a DataFrame
-sequences_df = parse_fasta_to_dataframe(fasta_file)
+        Args:
+            df (pd.DataFrame): DataFrame to split.
+            test_size (float): Proportion of the dataset to include in the test split.
+            random_state (int): Random seed.
 
-# Save the DataFrame to a CSV file
-save_dataframe_to_csv(sequences_df, output_csv)
+        Returns:
+            Tuple[pd.DataFrame, pd.DataFrame]: Training and testing DataFrames.
+        """
+        return train_test_split(df, test_size=test_size, random_state=random_state)
 
-# Split into training and testing datasets
-train_df, test_df = split_data(sequences_df, test_size=0.2)
+    def process_data(self, test_size: float = 0.2):
+        """
+        Execute the full data processing pipeline.
 
-# Save the training and testing datasets to CSV files
-save_dataframe_to_csv(train_df, train_csv)
-save_dataframe_to_csv(test_df, test_csv)
+        Args:
+            test_size (float): Proportion of the dataset to include in the test split.
+        """
+        print("Parsing FASTA file...")
+        sequences_df = self.parse_fasta()
 
-print(f"Processed {len(sequences_df)} sequences. Training set: {len(train_df)}, Test set: {len(test_df)}")
+        print("Splitting data into training and testing sets...")
+        train_df, test_df = self.split_data(sequences_df, test_size=test_size)
+
+        print("Saving datasets...")
+        self.save_dataframe(sequences_df, "sequences.csv")
+        self.save_dataframe(train_df, "train_sequences.csv")
+        self.save_dataframe(test_df, "test_sequences.csv")
+
+        print(f"Processing complete: {len(sequences_df)} sequences processed. "
+              f"Training set: {len(train_df)}, Test set: {len(test_df)}")
+
+
+if __name__ == "__main__":
+    # Example usage
+    fasta_file = "data/raw/raw.fasta"
+    output_directory = "data/processed"
+
+    processor = DataProcessor(fasta_path=fasta_file, output_dir=output_directory)
+    processor.process_data(test_size=0.2)

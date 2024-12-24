@@ -33,7 +33,7 @@ class Preprocessor:
         self.optimal_sentence_length = optimal_sentence_length
         self.vocab = vocab
 
-    @with_logging(level=8)
+    @with_logging(level=11)
     def process(self, sequence: str) -> List[List[str]]:
         sequence = list(sequence)  # Convert string to list of characters
         

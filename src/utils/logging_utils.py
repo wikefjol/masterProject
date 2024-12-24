@@ -1,9 +1,9 @@
 import os
 import logging
 import inspect
-from typing import Any, Callable
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
+from typing import Callable, Any
 
 LOG_LEVELS = {
     "DL": 8,
@@ -14,6 +14,40 @@ LOG_LEVELS = {
     "E": logging.ERROR,
     "C": logging.CRITICAL,
 }
+
+class CustomRotatingFileHandler(RotatingFileHandler):
+    """
+    A custom rotating file handler to name backups as `filename_<number>.log`.
+    """
+    def _rotate_filename(self, filename, count):
+        """Helper method to construct rotated filenames."""
+        base, ext = os.path.splitext(filename)
+        return f"{base}_{count}{ext}"
+
+    def doRollover(self):
+        """
+        Perform a rollover, renaming log files with the custom convention.
+        """
+        if self.stream:
+            self.stream.close()
+            self.stream = None
+
+        if self.backupCount > 0:
+            for i in range(self.backupCount - 1, 0, -1):
+                sfn = self._rotate_filename(self.baseFilename, i)
+                dfn = self._rotate_filename(self.baseFilename, i + 1)
+                if os.path.exists(sfn):
+                    if os.path.exists(dfn):
+                        os.remove(dfn)
+                    os.rename(sfn, dfn)
+            dfn = self._rotate_filename(self.baseFilename, 1)
+            if os.path.exists(self.baseFilename):
+                if os.path.exists(dfn):
+                    os.remove(dfn)
+                os.rename(self.baseFilename, dfn)
+
+        if not self.delay:
+            self.stream = self._open()
 
 def with_logging(level: int) -> Callable[..., Any]:
     """Decorator to log the start and end of a function, including its module and class."""
@@ -81,7 +115,7 @@ def setup_logging(system_level, training_level, log_dir=None):
     # Set up system logger
     system_logger.setLevel(system_level)
     system_log_file = os.path.join(log_dir, f"system_{log_file_timestamp}.log") if log_dir else "system.log"
-    system_handler = RotatingFileHandler(system_log_file, maxBytes=5 * 1024 * 1024, backupCount=3)
+    system_handler = CustomRotatingFileHandler(system_log_file, maxBytes=5 * 1024 * 1024, backupCount=3)
     system_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
     system_handler.setFormatter(system_formatter)
     system_logger.addHandler(system_handler)
@@ -89,7 +123,7 @@ def setup_logging(system_level, training_level, log_dir=None):
     # Set up training logger
     training_logger.setLevel(training_level)
     training_log_file = os.path.join(log_dir, f"training_{log_file_timestamp}.log") if log_dir else "training.log"
-    training_handler = RotatingFileHandler(training_log_file, maxBytes=5 * 1024 * 1024, backupCount=3)
+    training_handler = CustomRotatingFileHandler(training_log_file, maxBytes=5 * 1024 * 1024, backupCount=3)
     training_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
     training_handler.setFormatter(training_formatter)
     training_logger.addHandler(training_handler)

@@ -3,7 +3,6 @@ import os
 from inspect import signature
 from typing import Any, Protocol
 
-# Updated imports based on refactored structure
 from preprocessing.augmentation import SequenceModifier
 from preprocessing.preprocessor import Preprocessor
 from errors import ConstructionError, StrategyError
@@ -22,7 +21,7 @@ class Modifier(Protocol):
 
 
 @with_logging(level=8)
-def load_strategy_module(strategy_type: str, strategy_name: str) -> Any:
+def load_strategy_module(strategy_type: str) -> Any:
     """Dynamically load and return the strategy module."""
     full_module_name = f"preprocessing.{strategy_type}"
     try:
@@ -64,7 +63,7 @@ def get_strategy(strategy_type: str, **kwargs) -> Any:
         raise ValueError(f"Missing 'strategy' in configuration for {strategy_type}.")
     
     class_name = strategy_name.capitalize() + "Strategy"
-    module = load_strategy_module(strategy_type, strategy_name)
+    module = load_strategy_module(strategy_type)
     return prepare_strategy(module, class_name, **kwargs)
 
 
@@ -72,10 +71,11 @@ def get_strategy(strategy_type: str, **kwargs) -> Any:
 def create_preprocessor(config: dict[str, Any], vocab: Vocabulary) -> Preprocessor:
     """Create and return a Preprocessor instance based on the configuration."""
     try:
-        aug_config = config["augmentation"]
-        tok_config = config["tokenization"]
-        pad_config = config["padding"]
-        trun_config = config["truncation"]
+        preprocessor_options = config["preprocessor_options"]
+        aug_config = preprocessor_options["augmentation_strategy"]
+        tok_config = preprocessor_options["tokenization_strategy"]
+        pad_config = preprocessor_options["padding_strategy"]
+        trun_config = preprocessor_options["truncation_strategy"]
 
         modifier: Modifier = SequenceModifier(aug_config["alphabet"])
         augmentation_strategy = get_strategy("augmentation", modifier=modifier, **aug_config)
@@ -96,6 +96,7 @@ def create_preprocessor(config: dict[str, Any], vocab: Vocabulary) -> Preprocess
     )
 
 
+@with_logging(level=10)
 def create_vocabulary(config: dict[str, Any]) -> Vocabulary:
     """Create a vocabulary based on the tokenization strategy."""
     strategy_map = {
@@ -103,7 +104,7 @@ def create_vocabulary(config: dict[str, Any]) -> Vocabulary:
         # Future tokenization strategies can be added here
     }
 
-    tokenization_config = config.get("tokenization", {})
+    tokenization_config = config.get("preprocessor_options", {}).get("tokenization_strategy", {})
     strategy = tokenization_config.get("strategy", "").lower()
     if not strategy:
         raise ConstructionError("Tokenization strategy not specified in the configuration.")
@@ -118,7 +119,7 @@ def create_vocabulary(config: dict[str, Any]) -> Vocabulary:
     try:
         if strategy == "kmer":
             k = tokenization_config["k"]
-            alphabet = config.get("augmentation", {}).get("alphabet", ["A", "C", "G", "T"])
+            alphabet = config.get("preprocessor_options", {}).get("augmentation_strategy", {}).get("alphabet", ["A", "C", "G", "T"])
             constructor = constructor_class(k=k, alphabet=alphabet)
     except KeyError as e:
         raise ConstructionError(f"Missing required parameter '{e.args[0]}' for tokenization strategy '{strategy}'.")
