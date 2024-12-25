@@ -3,11 +3,13 @@ import os
 from inspect import signature
 from typing import Any, Protocol
 
+
 from preprocessing.augmentation import SequenceModifier
 from preprocessing.preprocessor import Preprocessor
 from errors import ConstructionError, StrategyError
 from utils.logging_utils import with_logging
 from vocab import Vocabulary, KmerVocabConstructor
+
 
 
 class Modifier(Protocol):
@@ -66,28 +68,23 @@ def get_strategy(strategy_type: str, **kwargs) -> Any:
     module = load_strategy_module(strategy_type)
     return prepare_strategy(module, class_name, **kwargs)
 
-
-@with_logging(level=20)
-def create_preprocessor(config: dict[str, Any], vocab: Vocabulary) -> Preprocessor:
+@with_logging(level=10)
+def create_preprocessor(config, vocab, augmentation_config=None) -> Preprocessor:
     """Create and return a Preprocessor instance based on the configuration."""
     try:
-        preprocessor_options = config["preprocessor_options"]
-        aug_config = preprocessor_options["augmentation_strategy"]
-        tok_config = preprocessor_options["tokenization_strategy"]
-        pad_config = preprocessor_options["padding_strategy"]
-        trun_config = preprocessor_options["truncation_strategy"]
+        tokenization_config = config["tokenization_strategy"]
+        padding_config = config["padding_strategy"]
+        truncation_config = config["truncation_strategy"]
 
         # Create the modifier instance
-        alphabet = aug_config.get("alphabet", ["A", "C", "G", "T"])
-        modifier = SequenceModifier(alphabet)  # Pass this modifier to the strategy
+        alphabet = augmentation_config.get("alphabet", ["A", "C", "G", "T"])
+        modifier = SequenceModifier(alphabet)
 
         # Create strategies
-        augmentation_strategy = get_strategy(
-            "augmentation", modifier=modifier, **aug_config
-        )
-        tokenization_strategy = get_strategy("tokenization", **tok_config)
-        padding_strategy = get_strategy("padding", **pad_config)
-        truncation_strategy = get_strategy("truncation", **trun_config)
+        augmentation_strategy = get_strategy("augmentation", modifier=modifier, **augmentation_config)
+        tokenization_strategy = get_strategy("tokenization", **tokenization_config)
+        padding_strategy = get_strategy("padding", **padding_config)
+        truncation_strategy = get_strategy("truncation", **truncation_config)
 
     except KeyError as e:
         raise ConstructionError(f"Strategy configuration error: {e}")
@@ -104,37 +101,18 @@ def create_preprocessor(config: dict[str, Any], vocab: Vocabulary) -> Preprocess
 
 
 @with_logging(level=10)
-def create_vocabulary(config: dict[str, Any]) -> Vocabulary:
-    """Create a vocabulary based on the tokenization strategy."""
-    strategy_map = {
-        "kmer": KmerVocabConstructor,
-        # Future tokenization strategies can be added here
-    }
-
-    tokenization_config = config.get("preprocessor_options", {}).get("tokenization_strategy", {})
+def create_vocabulary(config: dict) -> Vocabulary:
+    """Create a vocabulary based on the tokenization strategy from the general configuration."""
+    tokenization_config = config.get("tokenization_strategy", {})
     strategy = tokenization_config.get("strategy", "").lower()
-    if not strategy:
-        raise ConstructionError("Tokenization strategy not specified in the configuration.")
 
-    constructor_class = strategy_map.get(strategy)
-    if not constructor_class:
-        raise ConstructionError(
-            f"Unsupported tokenization strategy: '{strategy}'. "
-            f"Available strategies: {list(strategy_map.keys())}"
-        )
-
-    try:
-        if strategy == "kmer":
-            k = tokenization_config["k"]
-            alphabet = config.get("preprocessor_options", {}).get("augmentation_strategy", {}).get("alphabet", ["A", "C", "G", "T"])
-            constructor = constructor_class(k=k, alphabet=alphabet)
-    except KeyError as e:
-        raise ConstructionError(f"Missing required parameter '{e.args[0]}' for tokenization strategy '{strategy}'.")
+    if strategy == "kmer":
+        k = tokenization_config["k"]
+        alphabet = config.get("augmentation_strategy", {}).get("alphabet", ["A", "C", "G", "T"])
+        constructor = KmerVocabConstructor(k=k, alphabet=alphabet)
+    else:
+        raise ConstructionError(f"Unsupported tokenization strategy: '{strategy}'")
 
     vocab = Vocabulary()
-    try:
-        vocab.build_from_constructor(constructor, data=[])
-    except Exception as e:
-        raise ConstructionError(f"Failed to build vocabulary using strategy '{strategy}': {e}")
-
+    vocab.build_from_constructor(constructor, data=[])
     return vocab

@@ -22,8 +22,19 @@ output_dir = "scenarios"
 os.makedirs(output_dir, exist_ok=True)
 
 # General configuration template
-general_config = {
-    "tokenization_strategy": "kmer",
+base_general_config = {
+    "tokenization_strategy": {
+        "strategy": "kmer",
+        "k": None  # To be filled based on the scenario
+    },
+    "padding_strategy": {
+        "strategy": None,  # To be filled based on the scenario
+        "optimal_length": optimal_length
+    },
+    "truncation_strategy": {
+        "strategy": None,  # To be filled based on the scenario
+        "optimal_length": optimal_length
+    },
     "log_dir": "runs/logs",
     "system_log_level": 20,
     "training_log_level": 20
@@ -38,19 +49,15 @@ base_pretraining_config = {
     "force_reprocess": False,
     "test_size": test_size,
     "random_seed": random_seed,
+    "max_samples": 2500,
+    "num_epochs": 5,
+    "masking_prob": 0.15,
     "vocab_options": {
         "min_frequency": 2,
         "max_tokens": 5000
     },
-    "preprocessor_options": {
-        "augmentation_strategy": {},
-        "tokenization_strategy": {
-            "strategy": "kmer",
-            "k": None
-        },
-        "padding_strategy": {},
-        "truncation_strategy": {}
-    }
+    "augmentation_strategy": {}  # To be filled based on the scenario
+    
 }
 
 # Finetuning configuration template
@@ -62,15 +69,9 @@ base_finetuning_config = {
     "force_reprocess": False,
     "test_size": test_size,
     "random_seed": random_seed,
-    "preprocessor_options": {
-        "augmentation_strategy": {},
-        "tokenization_strategy": {
-            "strategy": "kmer",
-            "k": None
-        },
-        "padding_strategy": {},
-        "truncation_strategy": {}
-    }
+    "max_samples": 2500,
+    "num_epochs": 5,
+    "augmentation_strategy": {}  # To be filled based on the scenario
 }
 
 # Generate 5 combinations of pretraining and finetuning configurations
@@ -86,41 +87,23 @@ for i, (k, augmentation, truncation, padding) in enumerate(combinations):
     scenario_dir = os.path.join(output_dir, f"scenario_{i+1}")
     os.makedirs(scenario_dir, exist_ok=True)
 
-    # Create copies of the base configurations
+    # Create a copy of the base general config
+    general_config = base_general_config.copy()
+    general_config["tokenization_strategy"]["k"] = k
+    general_config["padding_strategy"]["strategy"] = padding
+    general_config["truncation_strategy"]["strategy"] = truncation
+
+    # Create copies of the base pretraining and finetuning configs
     pretraining_config = base_pretraining_config.copy()
     finetuning_config = base_finetuning_config.copy()
 
-    # Update tokenization strategy for both pretraining and finetuning
-    pretraining_config["preprocessor_options"]["tokenization_strategy"]["k"] = k
-    finetuning_config["preprocessor_options"]["tokenization_strategy"]["k"] = k
-
-    # Update truncation strategy
-    pretraining_config["preprocessor_options"]["truncation_strategy"] = {
-        "strategy": truncation,
-        "optimal_length": optimal_length
-    }
-    finetuning_config["preprocessor_options"]["truncation_strategy"] = {
-        "strategy": truncation,
-        "optimal_length": optimal_length
-    }
-
-    # Update padding strategy
-    pretraining_config["preprocessor_options"]["padding_strategy"] = {
-        "strategy": padding,
-        "optimal_length": optimal_length
-    }
-    finetuning_config["preprocessor_options"]["padding_strategy"] = {
-        "strategy": padding,
-        "optimal_length": optimal_length
-    }
-
-    # Update augmentation strategy
-    pretraining_config["preprocessor_options"]["augmentation_strategy"] = {
+    # Update augmentation strategies
+    pretraining_config["augmentation_strategy"] = {
         "strategy": augmentation,
         "alphabet": ["A", "C", "G", "T"],
         "modification_probability": 0.5
     }
-    finetuning_config["preprocessor_options"]["augmentation_strategy"] = {
+    finetuning_config["augmentation_strategy"] = {
         "strategy": augmentation,
         "alphabet": ["A", "C", "G", "T"],
         "modification_probability": 0.5

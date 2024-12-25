@@ -3,7 +3,6 @@ import pandas as pd
 from Bio import SeqIO
 from sklearn.model_selection import train_test_split
 
-
 class SequenceDataPreparer:
     """
     Handles the parsing, preparation, and organization of sequence data
@@ -19,8 +18,8 @@ class SequenceDataPreparer:
             output_dir (str): Directory to store prepared outputs.
         """
         self.fasta_path = fasta_path
-        self.output_dir = output_dir
-        os.makedirs(self.output_dir, exist_ok=True)
+        self.output_dir = os.path.abspath(output_dir)  # Normalize path
+        os.makedirs(self.output_dir, exist_ok=True)   # Create directory if not exists
 
     def parse_fasta_to_dataframe(self) -> pd.DataFrame:
         """
@@ -118,7 +117,7 @@ class SequenceDataPreparer:
         train_df, test_df = train_test_split(df, test_size=test_size, random_state=random_state)
         return train_df, test_df
 
-    def prepare(self, test_size, random_seed):
+    def prepare(self, test_size: float, random_seed: int) -> tuple:
         """
         Execute the full sequence data preparation pipeline.
 
@@ -130,8 +129,8 @@ class SequenceDataPreparer:
 
         train_file = os.path.join(self.output_dir, "train_sequences.csv")
         test_file = os.path.join(self.output_dir, "test_sequences.csv")
-        self.save_dataframe_to_csv(train_df, train_file)
-        self.save_dataframe_to_csv(test_df, test_file)
+        self.save_dataframe_to_csv(train_df, "train_sequences.csv")  # Filename only
+        self.save_dataframe_to_csv(test_df, "test_sequences.csv")    # Filename only
 
         return train_file, test_file
 

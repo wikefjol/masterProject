@@ -27,28 +27,40 @@ class Vocabulary:
     def __init__(self):
         self.token_to_id: Dict[str, int] = {}
         self.id_to_token: Dict[int, str] = {}
-        self.pad_token = 'PAD'
-        self.unk_token = 'UNK'
-        self.pad_id = 0
-        self.unk_id = 1
-        # Initialize with PAD and UNK tokens
-        self.add_token(self.pad_token)
-        self.add_token(self.unk_token)
+
+        # Fixed special tokens
+        self.special_tokens = {
+            'PAD': 0,    # Padding token
+            'UNK': 1,    # Unknown token
+            'CLS': 101,  # Classification token
+            'SEP': 102,  # Separator token
+            'MASK': 103  # Mask token
+        }
+
+        # Initialize special tokens
+        for token, idx in self.special_tokens.items():
+            self.add_token(token, idx)
     
-    def add_token(self, token: str):
+    def __len__(self):
+        return len(self.token_to_id)
+
+    def add_token(self, token: str, idx: int = None):
+        """
+        Add a token to the vocabulary. Optionally, specify its ID.
+        """
         if token not in self.token_to_id:
-            idx = len(self.token_to_id)
+            if idx is None:
+                idx = len(self.token_to_id)  # Assign the next available ID
             self.token_to_id[token] = idx
             self.id_to_token[idx] = token
-    
+
     def get_id(self, token: str) -> int:
-        return self.token_to_id.get(token, self.unk_id)  # Default to UNK ID
+        return self.token_to_id.get(token, self.special_tokens['UNK'])  # Default to UNK ID
     
     def get_token(self, idx: int) -> str:
-        return self.id_to_token.get(idx, self.unk_token)  # Default to UNK token
-    
-    @with_logging(level=9)
-    def map_sentence(self, processed_sentence: List[List[str]]) -> List[List[int]]:
+        return self.id_to_token.get(idx, 'UNK')  # Default to UNK token
+
+    def map_sentence(self, processed_sentence: List[List[str]]) -> List[int]:
         """
         Maps a processed sentence from tokens to their corresponding IDs using the vocabulary.
 
@@ -56,14 +68,10 @@ class Vocabulary:
             processed_sentence (List[List[str]]): The preprocessed sentence as a list of token lists.
 
         Returns:
-            List[List[int]]: The sentence with tokens replaced by their corresponding IDs.
+            List[int]: The sentence with tokens replaced by their corresponding IDs as a flat list.
         """
-        return [
-            [self.get_id(token) for token in token_list]
-            for token_list in processed_sentence
-        ]
-    
-    
+        return [self.get_id(token) for token_list in processed_sentence for token in token_list]
+
     def save(self, filepath: str):
         """
         Save the vocabulary to a JSON file.
@@ -120,6 +128,8 @@ class KmerVocabConstructor(VocabConstructor):
             data (List[str]): List of raw sequences. (Ignored)
             vocab (Vocabulary): Vocabulary instance to populate.
         """
+        # Special tokens are already added by Vocabulary, no need to add again here
+
         # Generate all possible k-mers using Cartesian product
         all_kmers = [''.join(p) for p in product(self.alphabet, repeat=self.k)]
         
